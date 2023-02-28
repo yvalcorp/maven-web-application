@@ -1,0 +1,72 @@
+pipeline {
+  agent any 
+  tools {
+    maven "maven 3.8.6"
+  }  
+  stages {
+    stage('1 - GetCode'){
+      steps{
+        sh "echo 'cloning the latest application version' "
+        git branch: 'tesla-prod-declarative', url: 'https://github.com/Valerydolce/maven-web-application.git'
+      }
+    }
+    stage('3 - Test+Build'){
+      steps{
+        sh "echo 'running JUnit-test-cases' "
+        sh "echo 'testing must passed to create artifacts ' "
+        sh "mvn clean package"
+      }
+    }
+    
+    stage('4 - CodeQualityAnalysis'){
+      steps{
+        sh "echo 'Perfoming CodeQualityAnalysis' "
+        sh "mvn sonar:sonar"
+      }
+    }
+    
+     
+    stage('5 - uploadNexus'){
+      steps{
+        sh "mvn deploy"
+      }
+    } 
+    
+    
+    stage('6 - deploy2Tomcat'){
+      steps{
+        deploy adapters: [tomcat9(credentialsId: 'TomcatID', path: '', url: 'http://192.168.56.9:8080/')], contextPath: null, war: 'target/*war'
+      }
+    }
+
+}
+  post{
+    always{
+      	emailext body: '''Please check build status and validate.
+	
+	Thanks,
+	Paul Valery Simo
+''', recipientProviders: [developers(), requestor()], subject: 'Build Status', to: 'valerydolce@gmail.com, tsamo.christelle@gmail.com'
+    }
+    
+    success {
+        	emailext body: '''The deployment has been completed successfully!
+	
+	Thanks,
+	Paul Valery Simo
+	''', recipientProviders: [developers(), requestor()], subject: 'Build Status', to: 'valerydolce@gmail.com, tsamo.christelle@gmail.com'
+
+    } 
+    
+    failure {
+        	emailext body: '''The deployment has failed, please check the error log and fix.
+	
+	Thanks,
+	Paul Valery Simo
+	''', recipientProviders: [developers(), requestor()], subject: 'Build Status', to: 'valerydolce@gmail.com'
+
+    }
+
+  } 
+  
+}
